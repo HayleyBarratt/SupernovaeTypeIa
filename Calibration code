@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Feb 25 14:06:01 2019
+
+@author: hayleybarratt-bentley
+"""
+
+import pandas as pd
+import numpy as np
+from matplotlib import pyplot as plt
+from astropy.io import fits
+import shutil
+
+fdata= input("What is the file name for the csv data file?")
+Name= input("What is the name of the object you observed?")
+   
+def countstomag(flux, ncomparison):
+    for i in range (len(ncomparison+1)):   
+        if i==0:
+            objmag[i]=-2.5*np.log10(flux[i])
+        else:
+            compmag[i]=-2.5*np.log10(flux[i])
+    
+# Read data from file 'filename.csv'
+data=pd.read_csv(fdata, delimiter=',')
+
+#Finding comparison star data
+c_data = data.filter(regex='rel_flux_C')
+
+#Finding error data
+s_error = data.filter(regex='rel_flux_err_')
+
+#Finding Julian date, exposure time and object flux
+condensed_data=data[['J.D.-2400000', 'EXPTIME', 'rel_flux_T1']]
+
+#Condensing necessary data into new frame
+#cdata= pd.concat([condensed_data, c_data, s_error], axis=1)
+
+#Sourcing RA and DEC and putting it into the correct units
+RA=np.array(data.filter(regex='RA_'))
+RA_deg=pd.DataFrame(RA*15)
+DEC=data.filter(regex='DEC_')
+
+#Calculating flux to magnitude calculations to get magnitudes of object, comparisons and errors
+FLUXDATA= pd.concat([condensed_data.iloc[:,2], c_data], axis=1)
+MAGDATA=-2.5*np.log10(FLUXDATA +1e-20)
+ERR = (np.array(s_error) / np.array(FLUXDATA))
+err_MAG=-2.5*np.log10((1-ERR)+1e-20)
+
+
+#Finding date of data collected
+Date= np.array(condensed_data.iloc[:,0])
+Objectmag= -2.5*np.log10(condensed_data.iloc[:,2]+ 1e-20)
+
+#Converting data frame into numbers only, so headers will not be printed in final doc
+def value(Dataframe):
+    v1=Dataframe.values
+    v2=v1[::-1]
+    return v1
+
+MAGdata=value(MAGDATA)
+RA_DEG=value(RA_deg)
+dec=value(DEC)
+
+#Iterating through each date to make an output file for each frame 
+for i,row in condensed_data.iterrows():
+    
+    with open(f"{Name}_{i}.cat","w")as f:
+        f.write("#   1 MAG_AUTO        Kron-like elliptical aperture magnitude         [mag]\n#   2 MAGERR_AUTO     RMS error for AUTO magnitude                    [mag]\n#   3 ALPHA_J2000     Right ascension of barycenter (J2000)           [deg]\n#   4 DELTA_J2000     Declination of barycenter (J2000)               [deg] \n")
+        #df.to_csv(f,header=False, sep=" ")
+        for j in range (RA_deg.shape[1]):
+            f.write(str(MAGdata[i,j])+" ")
+            f.write(str(err_MAG[i,j])+" ")
+            f.write(str(RA_DEG[i,j])+" ")
+            f.write(str(dec[i,j])+ "\n")
+        #f.close()
+        #make cat file including (JD, RA, DEC, MAG, MAGerr)

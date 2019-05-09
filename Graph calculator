@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Mar  8 22:24:30 2019
+
+@author: hayleybarratt-bentley
+"""
+
+import pandas as pd
+import numpy as np
+from matplotlib import pyplot as plt
+from astropy.io import fits
+import shutil
+
+#Gaia19amj data.csv
+
+fdata= input("What is the file name for the csv data file?")
+Name= input("What is the name of the object you observed?")
+
+
+# Read data from file 'filename.csv'
+data=pd.read_csv(fdata, delimiter=',')
+
+#Finding Julian date, exposure time and object flux
+condensed_data=data[['J.D.-2400000', 'EXPTIME', 'rel_flux_T1']]
+c_data = data.filter(regex='rel_flux_C')
+
+#Converting flux to mag
+FLUXDATA= pd.concat([condensed_data.iloc[:,2], c_data], axis=1)
+MAGDATA=-2.5*np.log10(FLUXDATA +1e-20)
+#Errors
+s_error = data.filter(regex='rel_flux_err_')
+ERR = (np.array(s_error) / np.array(FLUXDATA))
+err_MAG=-2.5*np.log10((1-ERR)+1e-20)
+#Date
+Date= np.array(condensed_data.iloc[:,0])
+yerr=err_MAG[:,0]
+
+#Plotting graph
+plt.figure()
+plt.plot(Date, MAGDATA.iloc[:,0], marker='x', linestyle='none' )
+plt.gca().invert_yaxis()
+plt.grid()
+plt.plot(np.unique(Date), np.poly1d(np.polyfit(Date, MAGDATA.iloc[:,0], 3))(np.unique(Date)))
+plt.errorbar(Date, MAGDATA.iloc[:,0], yerr=yerr, fmt='o', markersize=1 ,ecolor='g', capthick=2)
+plt.ylabel("Differential Magnitude")
+plt.xlabel("Corrected Julian date")
+plt.title(f"Lightcurve for {Name}")
